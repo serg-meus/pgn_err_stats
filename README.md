@@ -23,13 +23,15 @@ etc
 containing the tool
 
 3. Execute command (for Win64 version): pgn_err_stats.exe
+
 For Python version execute command: python pgn_err_stats.py
+
 To save analysis result into a file, add ' > filename.txt' after the command.
 
 Author: Sergey Meus, Russian Federation.
 
 Links for download Win64 executable:
-    https://github.com/serg-meus/pgn_err_stats/tag/01
+    https://github.com/serg-meus/pgn_err_stats/releases/tag/01
 
 Dependencies (Python libs): python-chess
 Command to install: pip install python-chess
