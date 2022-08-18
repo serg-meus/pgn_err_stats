@@ -1,0 +1,14 @@
+{
+"pgn_input": "E:/chess/games/file.pgn",
+"pgn_output": "annotated.pgn",
+"first_game": "",
+"last_game": "",
+"skip_first_moves": "5",
+"only_if_player_name_contains": "",
+"read_values_from_pgn_input": false,
+"engine":  "E:/chess/engines/stockfish_15_x64_avx2.exe",
+"level": "movetime 500",
+"inaccuracy": "50",
+"mistake": "100",
+"blunder": "300"
+}
