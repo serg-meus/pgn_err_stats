@@ -4,39 +4,7 @@
 Pgn_err_stats v.0.1
 
 Console based tool for automatic analysis of chess games with an external
-UCI engine.
-
-After setting up the parameters of analysis (see pgn_err_stats.json file) and
-executing, this script prints to console the statistics of each player:
-number of analyzed games, moves, blunders, mistakes, inaccuracies and
-average loss per move in centipawns from the engine point of view.
-
-By default, each position is analyzed in 0.5 seconds. This may be changed by
-option "level" in json file. You can also use options "depth 10" or
-"nodes 5000" for extra-fast analyzes, the numbers may vary.
-
-
-Typical usage:
-
-1. Open pgn_err_stats.json and set up parameters of analysis, path to engine,
-etc
-
-2. Open terminal (command promt) and change current directory to path
-containing the tool
-
-3. Execute command (for Win64 version): pgn_err_stats.exe
-For Python version execute command: python pgn_err_stats.py
-To save analysis result into a file, add ' > filename.txt' after the command.
-
-Author: Sergey Meus, Russian Federation.
-
-Links for download Win64 executable:
-    https://github.com/serg-meus/pgn_err_stats/releases/tag/01
-
-Dependencies (Python libs): python-chess
-Command to install: pip install python-chess
-
-License: GNU GPL v3.0
+UCI engine (see README.md file)
 """
 
 from subprocess import Popen, PIPE
@@ -90,6 +58,8 @@ def get_stats(headers, result, jsn):
     for hdr, res in zip(headers, result):
         for side in ('White', 'Black'):
             stat = get_stat(res, side, jsn)
+            if not stat:
+                continue
             if hdr[side] not in ans:
                 ans[hdr[side]] = stat
             else:
@@ -102,22 +72,19 @@ def get_stat(result, side, jsn):
     first = jsn['skip_first_moves']
     first = int(first) if first else 0
     ans = result[2*first:]
-    shft = 1 if side == 'Black' else 0
-    for i in range(int(len(ans)/2) - 1):
-        if ans[2*i + shft + 1][0] != 'cp':
-            break
-        cp1 = int(ans[2*i + shft][1])
-        cp2 = -int(ans[2*i + shft + 1][1])
-        cp1, cp2 = (-cp1, -cp2) if side == 'Black' else (cp1, cp2)
+    if not ans:
+        return None
+    for i in range(0 if side == 'White' else 1, len(ans) - 1, 2):
+        cp1 = int(ans[i][1]) if ans[i][0] == 'cp' else 32000
+        cp2 = -int(ans[i + 1][1]) if ans[i + 1][0] == 'cp' else 32000
         cp_loss = cp1 - cp2 if cp2 < cp1 else 0
-        sum_cp_loss += cp_loss
+        sum_cp_loss += cp_loss if ans[i + 1][0] == ans[i][0] == 'cp' else 0
         if cp_loss >= int(jsn['blunder']):
             blunders += 1
         elif cp_loss >= int(jsn['mistake']):
             mistakes += 1
         elif cp_loss >= int(jsn['inaccuracy']):
             inaccs += 1
-
     return sum_cp_loss/len(ans), inaccs, mistakes, blunders, 1, len(ans)
 
 
@@ -147,6 +114,8 @@ def analyze_games(pipe, uci_games, level):
         for halfmove_num in range(len(game)):
             moves = ' '.join(game[:halfmove_num + 1])
             ans_game.append(analyze_position(pipe, moves, level))
+        if ans_game[-1][0] == 'mate' and ans_game[-1][1] == '0':
+            del(ans_game[-1])
         ans.append(ans_game)
     return ans
 
