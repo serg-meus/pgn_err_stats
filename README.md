@@ -1,4 +1,4 @@
-Pgn_err_stats v.0.1
+Pgn_err_stats v.0.2
 ===================
 
 Console based tool for automatic analysis of chess games with an external
@@ -27,8 +27,8 @@ To save analysis result into a file, add ' > filename.txt' after the command, fo
 
 Author: Sergey Meus, Russian Federation.
 
-Links for download Win64 executable:
-    https://github.com/serg-meus/pgn_err_stats/releases/tag/01
+Link for download Win64 executable:
+    https://github.com/serg-meus/pgn_err_stats/releases/tag/02
 
 Dependencies (Python libs): python-chess
 

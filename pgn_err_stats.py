@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Pgn_err_stats v.0.1
+Pgn_err_stats v.0.2
 
 Console based tool for automatic analysis of chess games with an external
 UCI engine (see README.md file)
@@ -11,8 +11,7 @@ from subprocess import Popen, PIPE
 from os import path
 from sys import stderr, exit
 from json import load
-import chess
-import chess.pgn
+from chess import pgn, Move
 
 
 def main():
@@ -139,9 +138,9 @@ def pgn_to_uci(jsn):
         first, last = 1, int(1e9)
     else:
         first, last = int(first), int(last)
-    with open(jsn['pgn_input']) as pgn:
+    with open(jsn['pgn_input']) as file:
         while game_cr < last:
-            game = chess.pgn.read_game(pgn)
+            game = pgn.read_game(file)
             if not game:
                 break
             if player and player not in game.headers['White'].lower() and \
@@ -164,9 +163,9 @@ def get_values_from_pgn(in_file, first, last):
         first, last = 1, int(1e9)
     else:
         first, last = int(first), int(last)
-    with open(in_file) as pgn:
+    with open(in_file) as file:
         while game_cr <= last:
-            line = pgn.readline()
+            line = file.readline()
             if not line:
                 break
             if '[Event' in line:
@@ -212,17 +211,17 @@ def analysis_result(out):
 def write_pgn(uci_games, headers, results, out_file):
     pgn_string = ''
     for uci_game, header, result in zip(uci_games, headers, results):
-        game = chess.pgn.Game()
+        game = pgn.Game()
         game.headers = header
-        node = game.add_variation(chess.Move.from_uci(uci_game[0]),
+        node = game.add_variation(Move.from_uci(uci_game[0]),
                                   comment=res_to_str(result[0]))
         for i, move in enumerate(uci_game[1:]):
-            node = node.add_variation(chess.Move.from_uci(uci_game[1 + i]),
+            node = node.add_variation(Move.from_uci(uci_game[1 + i]),
                                       comment=res_to_str(result[1 + i]))
-        exporter = chess.pgn.StringExporter()
+        exporter = pgn.StringExporter()
         pgn_string += game.accept(exporter) + '\n\n'
-    with open(out_file, 'w') as pgn:
-        pgn.write(pgn_string)
+    with open(out_file, 'w') as file:
+        file.write(pgn_string)
 
 
 def res_to_str(res):
