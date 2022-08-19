@@ -181,7 +181,7 @@ def pgn_to_uci(jsn):
             game_cr += 1
             if game_cr < first:
                 continue
-            line = game.main_line()
+            line = game.mainline()
             uci_games.append([m.uci() for m in line])
             headers.append(game.headers)
     return uci_games, headers
