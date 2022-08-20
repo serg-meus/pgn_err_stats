@@ -6,15 +6,17 @@ Pgn_err_stats v.0.2
 Console based tool for automatic analysis of chess games with an external
 UCI engine (see README.md file)
 """
-
+from time import time
 from subprocess import Popen, PIPE
 from os import path
 from sys import stderr, exit
 from json import load
+from joblib import Parallel, delayed, parallel_backend
 from chess import pgn, Move
 
 
 def main():
+    t_start = time()
     with open('pgn_err_stats.json', 'r', encoding='utf-8') as infile:
         jsn = load(infile)
 
@@ -26,6 +28,7 @@ def main():
                                       jsn['last_game'])
     stats = get_stats(headers, results, jsn)
     out_stats(stats, jsn['only_if_player_name_contains'])
+    print('\nElapsed time: %.2f s' % (time() - t_start))
     return 0
 
 
@@ -33,7 +36,10 @@ def analyze_and_save(uci_games, headers, jsn):
     if not path.isfile(jsn['engine']):
         stderr.write('Error: engine executable not found\n')
         exit(1)
-    results = start_engine_and_analyze(uci_games, jsn)
+    if jsn['cpu_cores'] != '1':
+        results = analyze_games_parallel(uci_games, jsn)
+    else:
+        results = analyze_games(uci_games, jsn)
     if not results:
         stderr.write('Error: cant execute the engine\n')
         exit(2)
@@ -42,14 +48,45 @@ def analyze_and_save(uci_games, headers, jsn):
     return results
 
 
-def start_engine_and_analyze(uci_games, jsn):
+def analyze_games(uci_games, jsn):
+    ans = []
+    for game in progress_bar(uci_games):
+        result = analyze_game(game, jsn)
+        ans.append(result)
+    return ans
+
+
+def analyze_games_parallel(uci_games, jsn):
+    with parallel_backend('threading', n_jobs=int(jsn['cpu_cores'])):
+        ans = Parallel()(delayed(analyze_game)(i, jsn)
+                         for i in uci_games)
+    return ans
+
+
+def analyze_game(game, jsn):
     with Popen(jsn['engine'], shell=True, stdin=PIPE, stdout=PIPE) as pipe:
         pipe_response(pipe, 'uci', 'uciok')
         pipe_response(pipe, 'ucinewgame')
-        results = analyze_games(pipe, uci_games, jsn['level'])
+        ans = [analyze_position(pipe, None, jsn['level'])]
+        for halfmove_num in range(len(game)):
+            moves = ' '.join(game[:halfmove_num + 1])
+            ans.append(analyze_position(pipe, moves, jsn['level']))
+        if ans[-1][0] == 'mate' and ans[-1][1] == '0':
+            del(ans[-1])
         pipe_response(pipe, 'quit')
-        return results
+        if jsn['cpu_cores'] != '1':
+            print('.', end='')
+        return ans
     return None
+
+
+def analyze_position(pipe, moves, level):
+    pipe_response(pipe, 'isready', 'readyok')
+    pipe_response(pipe, 'position startpos moves ' + moves if moves else
+                  'position startpos')
+    pipe_response(pipe, 'isready', 'readyok')
+    out = pipe_response(pipe, 'go ' + level, 'bestmove')
+    return analysis_result(out)
 
 
 def get_stats(headers, result, jsn):
@@ -104,28 +141,6 @@ def out_stats(stats, player_name):
               'Inaccuracies: %d, Average loss: %.1f centipawns' %
               (i + 1, a, ans[a][4], ans[a][5], ans[a][3], ans[a][2], ans[a][1],
                ans[a][0]))
-
-
-def analyze_games(pipe, uci_games, level):
-    ans = []
-    for game in progress_bar(uci_games, prefix='Analysis:', suffix='Games'):
-        ans_game = [analyze_position(pipe, None, level)]
-        for halfmove_num in range(len(game)):
-            moves = ' '.join(game[:halfmove_num + 1])
-            ans_game.append(analyze_position(pipe, moves, level))
-        if ans_game[-1][0] == 'mate' and ans_game[-1][1] == '0':
-            del(ans_game[-1])
-        ans.append(ans_game)
-    return ans
-
-
-def analyze_position(pipe, moves, level):
-    pipe_response(pipe, 'isready', 'readyok')
-    pipe_response(pipe, 'position startpos moves ' + moves if moves else
-                  'position startpos')
-    pipe_response(pipe, 'isready', 'readyok')
-    out = pipe_response(pipe, 'go ' + level, 'bestmove')
-    return analysis_result(out)
 
 
 def pgn_to_uci(jsn):

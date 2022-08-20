@@ -8,6 +8,7 @@
 "read_values_from_pgn_input": false,
 "engine":  "E:/chess/engines/stockfish_15_x64_avx2.exe",
 "level": "movetime 500",
+"cpu_cores": "1",
 "inaccuracy": "50",
 "mistake": "100",
 "blunder": "300"
