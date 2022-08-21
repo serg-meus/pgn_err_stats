@@ -1,4 +1,4 @@
-Pgn_err_stats v.0.2
+Pgn_err_stats v.0.3
 ===================
 
 Console based tool for automatic analysis of chess games with an external
@@ -19,21 +19,26 @@ Typical usage:
 1. Open pgn_err_stats.json and set up parameters of analysis, path to engine,
 etc
 
-2. Open terminal (command promt) and enter commands to change current directory to path containing the tool
+2. Open terminal (command promt) and enter commands to change current
+directory to path containing the tool
 
-3. Execute command ```pgn_err_stats.exe``` (for Win64 version) or ```python pgn_err_stats.py``` (to run Python script).
+3. Execute command ```pgn_err_stats.exe``` (for Win64 version)
+or ```python pgn_err_stats.py``` (to run Python script).
 
-To save analysis result into a file, add ' > filename.txt' after the command, for instance: ```pgn_err_stats.exe > filename.txt```
+To save analysis result into a file, add ' > filename.txt' after the command,
+for instance: ```pgn_err_stats.exe > filename.txt```
 
 Author: Sergey Meus, Russian Federation.
 
-Link for download Win64 executable:
-    https://github.com/serg-meus/pgn_err_stats/releases/tag/02
+Link for download executables:
+    https://github.com/serg-meus/pgn_err_stats/releases/tag/03
 
-Dependencies (Python libs): python-chess
+Dependencies (Python libs): python-chess, joblib
 
-Command to install: pip install python-chess
+Command to install: pip install python-chess joblib
 
-If the last command fails, you should check python and pip via commands ```python3 --version``` and ```pip3 --version``` and find instructions to install python3 and pip3 packages for your system.
+If the last command fails, you should check python and pip via
+commands```python3 --version``` and ```pip3 --version``` and find instructions
+to install python3 and pip3 packages for your system.
 
 License: GNU GPL v3.0

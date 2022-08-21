@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Pgn_err_stats v.0.2
+Pgn_err_stats v.0.3
 
 Console based tool for automatic analysis of chess games with an external
-UCI engine (see README.md file)
+UCI engine (see README.md)
 """
 from time import time
 from subprocess import Popen, PIPE
@@ -16,12 +16,12 @@ from chess import pgn, Move
 
 
 def main():
-    t_start = time()
     with open('pgn_err_stats.json', 'r', encoding='utf-8') as infile:
         jsn = load(infile)
 
     print('Reading games...')
     uci_games, headers = pgn_to_uci(jsn)
+    t_start = time()
     if not jsn['read_values_from_pgn_input']:
         results = analyze_and_save(uci_games, headers, jsn)
     else:
@@ -29,15 +29,16 @@ def main():
                                       jsn['last_game'])
     stats = get_stats(headers, results, jsn)
     out_stats(stats, jsn['only_if_player_name_contains'])
-    print('\nElapsed time: %.2f s' % (time() - t_start))
+    print('\nAnalysis time: %.2f s' % (time() - t_start))
     return 0
 
 
 def analyze_and_save(uci_games, headers, jsn):
-    print('Annalyzing by engine...')
+    analyze_game.game_cr = 0
     if not path.isfile(jsn['engine']):
         stderr.write('Error: engine executable not found\n')
         exit(1)
+    progress_bar(0, len(uci_games), 'Analyzing:')
     if jsn['cpu_cores'] != '1':
         results = analyze_games_parallel(uci_games, jsn)
     else:
@@ -52,21 +53,21 @@ def analyze_and_save(uci_games, headers, jsn):
 
 def analyze_games(uci_games, jsn):
     ans = []
-    for game in progress_bar(uci_games):
-        result = analyze_game(game, jsn)
+    for game in uci_games:
+        result = analyze_game(game, jsn, len(uci_games))
         ans.append(result)
     return ans
 
 
 def analyze_games_parallel(uci_games, jsn):
     with parallel_backend('threading', n_jobs=int(jsn['cpu_cores'])):
-        ans = Parallel()(delayed(analyze_game)(i, jsn)
+        ans = Parallel()(delayed(analyze_game)(i, jsn, len(uci_games))
                          for i in uci_games)
     print()
     return ans
 
 
-def analyze_game(game, jsn):
+def analyze_game(game, jsn, n_games):
     with Popen(jsn['engine'], shell=True, stdin=PIPE, stdout=PIPE) as pipe:
         pipe_response(pipe, 'uci', 'uciok')
         pipe_response(pipe, 'ucinewgame')
@@ -77,8 +78,8 @@ def analyze_game(game, jsn):
         if ans[-1][0] == 'mate' and ans[-1][1] == '0':
             del(ans[-1])
         pipe_response(pipe, 'quit')
-        if jsn['cpu_cores'] != '1':
-            print('.', end='')
+        analyze_game.game_cr += 1
+        progress_bar(analyze_game.game_cr, n_games, 'Analyzing:')
         return ans
     return None
 
@@ -110,6 +111,8 @@ def get_stat(result, side, jsn):
     sum_cp_loss, inaccs, mistakes, blunders = 0, 0, 0, 0
     first = int(jsn['skip_first_moves']) if jsn['skip_first_moves'] else 0
     res1 = get_list_of_lists(result, side, first)
+    if not res1 or len(res1) == 0:
+        return None
     for ans in res1:
         cp1 = int(ans[0][1]) if ans[0][0] == 'cp' else 32000
         cp2 = -int(ans[1][1]) if ans[1][0] == 'cp' else 32000
@@ -264,10 +267,8 @@ def res_to_str(res):
     return score + '/' + res[3] + ' ' + res[2]
 
 
-def progress_bar(iterable, prefix='Progress:', suffix='Finished', decimals=1,
-                 length=50, fill='█', end='\r'):
-    total = len(iterable)
-
+def progress_bar(cur, total, prefix='Progress:', suffix='Finished',
+                 decimals=1, length=50, fill='█', end='\r'):
     def _print_progress_bar(iteration):
         percent = ('{0:.' + str(decimals) +
                    'f}').format(100*(iteration/float(total)))
@@ -275,11 +276,7 @@ def progress_bar(iterable, prefix='Progress:', suffix='Finished', decimals=1,
         bar = fill*filled_length + '-'*(length - filled_length)
         print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end=end)
 
-    _print_progress_bar(0)
-    for i, item in enumerate(iterable):
-        yield item
-        _print_progress_bar(i + 1)
-    print()
+    _print_progress_bar(cur) if cur <= total else print()
 
 
 def test():
