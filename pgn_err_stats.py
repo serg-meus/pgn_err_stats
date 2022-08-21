@@ -20,6 +20,7 @@ def main():
     with open('pgn_err_stats.json', 'r', encoding='utf-8') as infile:
         jsn = load(infile)
 
+    print('Reading games...')
     uci_games, headers = pgn_to_uci(jsn)
     if not jsn['read_values_from_pgn_input']:
         results = analyze_and_save(uci_games, headers, jsn)
@@ -33,6 +34,7 @@ def main():
 
 
 def analyze_and_save(uci_games, headers, jsn):
+    print('Annalyzing by engine...')
     if not path.isfile(jsn['engine']):
         stderr.write('Error: engine executable not found\n')
         exit(1)
@@ -60,6 +62,7 @@ def analyze_games_parallel(uci_games, jsn):
     with parallel_backend('threading', n_jobs=int(jsn['cpu_cores'])):
         ans = Parallel()(delayed(analyze_game)(i, jsn)
                          for i in uci_games)
+    print()
     return ans
 
 
@@ -105,23 +108,32 @@ def get_stats(headers, result, jsn):
 
 def get_stat(result, side, jsn):
     sum_cp_loss, inaccs, mistakes, blunders = 0, 0, 0, 0
-    first = jsn['skip_first_moves']
-    first = int(first) if first else 0
-    ans = result[2*first:]
-    if not ans:
-        return None
-    for i in range(0 if side == 'White' else 1, len(ans) - 1, 2):
-        cp1 = int(ans[i][1]) if ans[i][0] == 'cp' else 32000
-        cp2 = -int(ans[i + 1][1]) if ans[i + 1][0] == 'cp' else 32000
+    first = int(jsn['skip_first_moves']) if jsn['skip_first_moves'] else 0
+    res1 = get_list_of_lists(result, side, first)
+    for ans in res1:
+        cp1 = int(ans[0][1]) if ans[0][0] == 'cp' else 32000
+        cp2 = -int(ans[1][1]) if ans[1][0] == 'cp' else 32000
         cp_loss = cp1 - cp2 if cp2 < cp1 else 0
-        sum_cp_loss += cp_loss if ans[i + 1][0] == ans[i][0] == 'cp' else 0
+        sum_cp_loss += cp_loss if ans[1][0] == ans[0][0] == 'cp' else 0
         if cp_loss >= int(jsn['blunder']):
             blunders += 1
         elif cp_loss >= int(jsn['mistake']):
             mistakes += 1
         elif cp_loss >= int(jsn['inaccuracy']):
             inaccs += 1
-    return sum_cp_loss/len(ans), inaccs, mistakes, blunders, 1, len(ans)
+    return sum_cp_loss/len(res1), inaccs, mistakes, blunders, 1, len(res1)
+
+
+def get_list_of_lists(result, side, first):
+    ans1 = result[2*first:]
+    if not ans1:
+        return None
+    if side == 'Black':
+        del(ans1[0])
+    ans2 = [ans1[i:i + 2] for i in range(0, len(ans1), 2)]
+    if len(ans2[-1]) == 1:
+        del(ans2[-1])
+    return ans2
 
 
 def update_stat(old, new):
@@ -191,6 +203,8 @@ def get_values_from_pgn(in_file, first, last):
                 continue
             tmp = [x.split('/')[0] for x in line.split() if '/' in x and
                    'M' not in x]
+            if '.' not in tmp[-1]:
+                del(tmp[-1])
             ans += [['cp', str(int(float(x)*100))] for x in tmp]
         results.append(ans)
     return results[1:]
@@ -268,5 +282,20 @@ def progress_bar(iterable, prefix='Progress:', suffix='Finished', decimals=1,
     print()
 
 
+def test():
+    jsn = {"first_game": "",
+           "last_game": "",
+           "skip_first_moves": "",
+           "only_if_player_name_contains": "",
+           "inaccuracy": "50",
+           "mistake": "100",
+           "blunder": "300" }
+    results = get_values_from_pgn('test_games.pgn', '', '')
+    headers = [{'White': 'Player1', 'Black': 'Player2'}]
+    stats = get_stats(headers, results, jsn)
+    assert stats == {'Player1': (400., 0, 0, 1, 1, 3),
+                     'Player2': (370., 0, 0, 1, 1, 3)}
+
 if __name__ == '__main__':
+    test()
     main()
