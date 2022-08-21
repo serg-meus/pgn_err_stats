@@ -33,9 +33,9 @@ Author: Sergey Meus, Russian Federation.
 Link for download executables:
     https://github.com/serg-meus/pgn_err_stats/releases/tag/03
 
-Dependencies (Python libs): python-chess, joblib
+Dependencies (Python libs): python-chess
 
-Command to install: pip install python-chess joblib
+Command to install: pip install python-chess
 
 If the last command fails, you should check python and pip via
 commands```python3 --version``` and ```pip3 --version``` and find instructions
