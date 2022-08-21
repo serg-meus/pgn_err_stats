@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Pgn_err_stats v.0.3
+Pgn_err_stats v.0.4
 
 Console based tool for automatic analysis of chess games with an external
 UCI engine (see README.md)
@@ -11,7 +11,7 @@ from subprocess import Popen, PIPE
 from os import path
 from sys import stderr, exit
 from json import load
-from joblib import Parallel, delayed, parallel_backend
+from multiprocessing import Pool
 from chess import pgn, Move
 
 
@@ -60,9 +60,9 @@ def analyze_games(uci_games, jsn):
 
 
 def analyze_games_parallel(uci_games, jsn):
-    with parallel_backend('threading', n_jobs=int(jsn['cpu_cores'])):
-        ans = Parallel()(delayed(analyze_game)(i, jsn, len(uci_games))
-                         for i in uci_games)
+    with Pool(int(jsn['cpu_cores'])) as p:
+        ans = p.starmap(analyze_game, ((i, jsn, len(uci_games))
+                                        for i in uci_games))
     print()
     return ans
 
