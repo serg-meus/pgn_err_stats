@@ -6,6 +6,7 @@ Pgn_err_stats v.0.4
 Console based tool for automatic analysis of chess games with an external
 UCI engine (see README.md)
 """
+
 from time import time
 from subprocess import Popen, PIPE
 from os import path
@@ -34,7 +35,6 @@ def main():
 
 
 def analyze_and_save(uci_games, headers, jsn):
-    analyze_game.game_cr = 0
     if not path.isfile(jsn['engine']):
         stderr.write('Error: engine executable not found\n')
         exit(1)
@@ -53,21 +53,22 @@ def analyze_and_save(uci_games, headers, jsn):
 
 def analyze_games(uci_games, jsn):
     ans = []
-    for game in uci_games:
-        result = analyze_game(game, jsn, len(uci_games))
+    for i, game in enumerate(uci_games):
+        result = analyze_game(game, jsn, i, len(uci_games))
         ans.append(result)
     return ans
 
 
 def analyze_games_parallel(uci_games, jsn):
     with Pool(int(jsn['cpu_cores'])) as p:
-        ans = p.starmap(analyze_game, ((i, jsn, len(uci_games))
-                                        for i in uci_games))
+        args = [(game, jsn, i, len(uci_games))
+                for i, game in enumerate(uci_games)]
+        ans = p.starmap(analyze_game, args)
     print()
     return ans
 
 
-def analyze_game(game, jsn, n_games):
+def analyze_game(game, jsn, game_num, games_total):
     with Popen(jsn['engine'], shell=True, stdin=PIPE, stdout=PIPE) as pipe:
         pipe_response(pipe, 'uci', 'uciok')
         pipe_response(pipe, 'ucinewgame')
@@ -78,8 +79,7 @@ def analyze_game(game, jsn, n_games):
         if ans[-1][0] == 'mate' and ans[-1][1] == '0':
             del(ans[-1])
         pipe_response(pipe, 'quit')
-        analyze_game.game_cr += 1
-        progress_bar(analyze_game.game_cr, n_games, 'Analyzing:')
+        progress_bar(game_num, games_total, 'Analyzing:')
         return ans
     return None
 
@@ -206,7 +206,7 @@ def get_values_from_pgn(in_file, first, last):
                 continue
             tmp = [x.split('/')[0] for x in line.split() if '/' in x and
                    'M' not in x]
-            if '.' not in tmp[-1]:
+            if tmp and '.' not in tmp[-1]:
                 del(tmp[-1])
             ans += [['cp', str(int(float(x)*100))] for x in tmp]
         results.append(ans)
@@ -286,12 +286,13 @@ def test():
            "only_if_player_name_contains": "",
            "inaccuracy": "50",
            "mistake": "100",
-           "blunder": "300" }
+           "blunder": "300"}
     results = get_values_from_pgn('test_games.pgn', '', '')
     headers = [{'White': 'Player1', 'Black': 'Player2'}]
     stats = get_stats(headers, results, jsn)
     assert stats == {'Player1': (400., 0, 0, 1, 1, 3),
                      'Player2': (370., 0, 0, 1, 1, 3)}
+
 
 if __name__ == '__main__':
     test()
