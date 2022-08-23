@@ -1,4 +1,4 @@
-Pgn_err_stats v.0.3
+Pgn_err_stats v.0.4
 ===================
 
 Console based tool for automatic analysis of chess games with an external

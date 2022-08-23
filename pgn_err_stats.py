@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Pgn_err_stats v.0.3
+Pgn_err_stats v.0.4
 
 Console based tool for automatic analysis of chess games with an external
 UCI engine (see README.md)
