@@ -1,85 +1,316 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Pgn_err_stats v.0.4
+pgn-err-stats v.0.5
 
-Console based tool for automatic analysis of chess games with an external
-UCI engine (see README.md)
+  GUI tool for automatic analysis of chess games with an external UCI engine
+(see README.md)
 """
 
+import tkinter as tk
+from tkinter import messagebox, filedialog as fd, ttk
 from time import time
 from subprocess import Popen, PIPE
 from os import path
-from sys import stderr, exit
-from json import load
+import sys
 from multiprocessing import Pool
+from json import load, dumps
 from chess import pgn, Move
 
 
 def main():
-    with open('pgn_err_stats.json', 'r', encoding='utf-8') as infile:
-        jsn = load(infile)
+    root = tk.Tk()
+    root.option_add("*Label.Font", "clearlyu 13")
+    root.title("pgn-err-stats v0.5")
+    root.resizable(False, False)
+    main.gui_items = create_gui_items()
+    main.stdout = sys.stdout
+    main.stderr = sys.stderr
+    main.root = root
+    root.protocol('WM_DELETE_WINDOW', on_exit)
+    root.mainloop()
 
+
+def create_gui_items():
+    opt = {
+        "pgn_input": "",
+        "pgn_output": "",
+        "engine": "",
+        "first_game": "0",
+        "last_game": "0",
+        "skip_first_moves": "5",
+        "only_if_player_name_contains": "",
+        "read_values_from_pgn_input": False,
+        "level": "movetime 500",
+        "cpu_cores": "1",
+        "inaccuracy": "50",
+        "mistake": "100",
+        "blunder": "300",
+        "logfile": "logfile.txt"
+        }
+    if path.isfile('pgn-err-stats.json'):
+        with open('pgn-err-stats.json', 'r', encoding='utf-8') as infile:
+            opt = load(infile)
+    items, buttons = init_gui_items()
+    set_options(items, opt)
+    pack_gui_items(items)
+    bind_buttons(buttons)
+    return items
+
+
+def set_text(item, text):
+    item.delete(0, tk.END)
+    item.insert(0, text)
+
+
+def init_gui_items():
+    items = [[] for i in range(15)]
+    buttons = {}
+
+    items[0].append(tk.Label(text='Input PGN file'))
+    items[0].append(tk.Entry(width=60))
+    items[0].append(tk.Button(text='Open'))
+
+    items[1].append(tk.Label(text='Output PGN file'))
+    items[1].append(tk.Entry(width=60))
+    items[1].append(tk.Button(text='Open'))
+
+    items[2].append(tk.Label(text='Engine executable'))
+    items[2].append(tk.Entry(width=60))
+    items[2].append(tk.Button(text='Open'))
+
+    items[3].append(tk.Label(text='First game'))
+    var = tk.IntVar(value=0)
+    items[3].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=1e9))
+
+    items[4].append(tk.Label(text='Last game'))
+    var = tk.IntVar(value=0)
+    items[4].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=1e9))
+
+    items[5].append(tk.Label(text='Skip first moves'))
+    var = tk.IntVar(value=5)
+    items[5].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=200))
+
+    items[6].append(tk.Label(text='Only if player name contains'))
+    items[6].append(tk.Entry(width=60))
+
+    items[7].append(tk.Label(text='Read values from PGN input'))
+    items[7].append(tk.Label(text="(don't run the engine)"))
+    items[7].append(ttk.Checkbutton())
+    items[7][2].state(['!alternate', '!selected'])
+
+    items[8].append(tk.Label(text='Level'))
+    items[8].append(ttk.Combobox(values=['movetime', 'nodes', 'depth'],
+                                 state='readonly'))
+    var = tk.IntVar(value=500)
+    items[8].append(tk.Spinbox(width=8, textvariable=var, from_=0, to=1e9))
+    items[8][1].current(0)
+
+    items[9].append(tk.Label(text='CPU cores'))
+    var = tk.IntVar(value=1)
+    items[9].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=9999))
+
+    items[10].append(tk.Label(text='Inaccuracy'))
+    var = tk.IntVar(value=50)
+    items[10].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=9999))
+
+    items[11].append(tk.Label(text='Mistake'))
+    var = tk.IntVar(value=100)
+    items[11].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=9999))
+
+    items[12].append(tk.Label(text='Blunder'))
+    var = tk.IntVar(value=300)
+    items[12].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=9999))
+
+    items[13].append(tk.Label(text='Output log file'))
+    items[13].append(tk.Entry(width=60))
+    items[13].append(tk.Button(text='Open'))
+
+    items[14].append(tk.Label(text=''))
+    items[14].append(tk.Button(text='Run'))
+
+    buttons['open_pgn_in'] = items[0][2]
+    buttons['open_pgn_out'] = items[1][2]
+    buttons['open_engine'] = items[2][2]
+    buttons['open_log'] = items[13][2]
+    buttons['run'] = items[14][1]
+
+    return items, buttons
+
+
+def pack_gui_items(items):
+    for row, row_items in enumerate(items):
+        for col, item in enumerate(row_items):
+            item.grid(column=col, row=row, padx=6, pady=4, sticky=tk.W)
+
+
+def bind_buttons(buttons):
+    buttons['run'].bind('<Button-1>', on_evaluate)
+    buttons['open_pgn_in'].bind('<Button-1>', on_open_pgn_in)
+    buttons['open_pgn_out'].bind('<Button-1>', on_open_pgn_out)
+    buttons['open_engine'].bind('<Button-1>', on_open_engine)
+    buttons['open_log'].bind('<Button-1>', on_open_log)
+
+
+def get_options(items):
+    opt = {}
+    opt['pgn_input'] = items[0][1].get()
+    opt['pgn_output'] = items[1][1].get()
+    opt['engine'] = items[2][1].get()
+    opt['first_game'] = items[3][1].get()
+    opt['last_game'] = items[4][1].get()
+    opt['skip_first_moves'] = items[5][1].get()
+    opt['only_if_player_name_contains'] = items[6][1].get()
+    opt['read_values_from_pgn_input'] = items[7][2].instate(['selected'])
+    opt['level'] = items[8][1].get() + ' ' + items[8][2].get()
+    opt['cpu_cores'] = items[9][1].get()
+    opt['inaccuracy'] = items[10][1].get()
+    opt['mistake'] = items[11][1].get()
+    opt['blunder'] = items[12][1].get()
+    opt['logfile'] = items[13][1].get()
+
+    return opt
+
+
+def set_options(items, opt):
+    set_text(items[0][1], opt['pgn_input'])
+    set_text(items[1][1], opt['pgn_output'])
+    set_text(items[2][1], opt['engine'])
+    set_text(items[3][1], opt['first_game'])
+    set_text(items[4][1], opt['last_game'])
+    set_text(items[5][1], opt['skip_first_moves'])
+    set_text(items[6][1], opt['only_if_player_name_contains'])
+    if opt['read_values_from_pgn_input']:
+        items[7][2].state(['!alternate', 'selected'])
+    else:
+        items[7][2].state(['!alternate', '!selected'])
+    tmp = {'movetime': 0, 'nodes': 1, 'depth': 2}
+    items[8][1].current(tmp[opt['level'].split()[0]])
+    set_text(items[8][2], opt['level'].split()[1])
+    set_text(items[9][1], opt['cpu_cores'])
+    set_text(items[10][1], opt['inaccuracy'])
+    set_text(items[11][1], opt['mistake'])
+    set_text(items[12][1], opt['blunder'])
+    set_text(items[13][1], opt['logfile'])
+
+    return opt
+
+
+def on_evaluate(event, gui_items=None):
+    opt = get_options(main.gui_items)
+    sys.stdout, sys.stderr = main.stdout, main.stderr
+    if opt['logfile']:
+        with open(opt['logfile'], 'w') as log:
+            sys.stdout, sys.stderr = log, log
+            try:
+                evaluate(opt)
+            except Exception as Arg:
+                messagebox.showerror('Error', 'Something went wrong. '
+                                     'See logfile for details')
+                log.write(str(Arg))
+            else:
+                messagebox.showinfo('Success', 'The log file created')
+            return 'break'
+    evaluate(opt)
+    messagebox.showinfo('Success', 'The log file created')
+    return 'break'
+
+
+def evaluate(opt):
     print('Reading games...')
-    uci_games, headers = pgn_to_uci(jsn)
+    uci_games, headers = pgn_to_uci(opt)
     t_start = time()
-    if not jsn['read_values_from_pgn_input']:
-        results = analyze_and_save(uci_games, headers, jsn)
+    if not opt['read_values_from_pgn_input']:
+        results = analyze_and_save(uci_games, headers, opt)
     else:
-        results = get_values_from_pgn(jsn['pgn_input'], jsn['first_game'],
-                                      jsn['last_game'])
-    stats = get_stats(headers, results, jsn)
-    out_stats(stats, jsn['only_if_player_name_contains'])
+        results = get_values_from_pgn(opt['pgn_input'], opt['first_game'],
+                                      opt['last_game'])
+    stats = get_stats(headers, results, opt)
+    out_stats(stats, opt['only_if_player_name_contains'])
     print('\nAnalysis time: %.2f s' % (time() - t_start))
-    return 0
 
 
-def analyze_and_save(uci_games, headers, jsn):
-    if not path.isfile(jsn['engine']):
-        stderr.write('Error: engine executable not found\n')
-        exit(1)
-    progress_bar(0, len(uci_games), 'Analyzing:')
-    if jsn['cpu_cores'] != '1':
-        results = analyze_games_parallel(uci_games, jsn)
+def on_open_pgn_in(event, gui_items=None):
+    filename = fd.askopenfilename(title='Open file', initialdir='.',
+                                  filetypes=(('PGN files', '*.pgn'),))
+    set_text(main.gui_items[0][1], filename)
+    return 'break'
+
+
+def on_open_pgn_out(event, gui_items=None):
+    filename = fd.askopenfilename(title='Open file', initialdir='.',
+                                  filetypes=(('PGN files', '*.pgn'),))
+    set_text(main.gui_items[1][1], filename)
+    return 'break'
+
+
+def on_open_engine(event, gui_items=None):
+    filename = fd.askopenfilename(title='Open file', initialdir='.',
+                                  filetypes=(('All files', '*.*'),))
+    set_text(main.gui_items[2][1], filename)
+    return 'break'
+
+
+def on_open_log(event, gui_items=None):
+    filename = fd.askopenfilename(title='Open file', initialdir='.',
+                                  filetypes=(('Text files', '*.txt'),))
+    set_text(main.gui_items[13][1], filename)
+    return 'break'
+
+
+def on_exit():
+    sys.stdout, sys.stderr = main.stdout, main.stderr
+    opt = get_options(main.gui_items)
+    json_obj = dumps(opt, indent=4)
+    with open('pgn-err-stats.json', 'w', encoding='utf-8') as outfile:
+        outfile.write(json_obj)
+    main.root.destroy()
+
+
+def analyze_and_save(uci_games, headers, opt):
+    if not path.isfile(opt['engine']):
+        sys.stderr.write('Error: engine executable not found\n')
+        sys.exit(1)
+    if opt['cpu_cores'] != '1':
+        results = analyze_games_parallel(uci_games, opt)
     else:
-        results = analyze_games(uci_games, jsn)
+        results = analyze_games(uci_games, opt)
     if not results:
-        stderr.write('Error: cant execute the engine\n')
-        exit(2)
-    if jsn['pgn_output'] and jsn['pgn_output'] != jsn['pgn_input']:
-        write_pgn(uci_games, headers, results, jsn['pgn_output'])
+        sys.stderr.write('Error: cant execute the engine\n')
+        sys.exit(2)
+    if opt['pgn_output'] and opt['pgn_output'] != opt['pgn_input']:
+        write_pgn(uci_games, headers, results, opt['pgn_output'])
     return results
 
 
-def analyze_games(uci_games, jsn):
+def analyze_games(uci_games, opt):
     ans = []
     for i, game in enumerate(uci_games):
-        result = analyze_game(game, jsn, i, len(uci_games))
+        result = analyze_game(game, opt, i, len(uci_games))
         ans.append(result)
     return ans
 
 
-def analyze_games_parallel(uci_games, jsn):
-    with Pool(int(jsn['cpu_cores'])) as p:
-        args = [(game, jsn, i, len(uci_games))
+def analyze_games_parallel(uci_games, opt):
+    with Pool(int(opt['cpu_cores'])) as p:
+        args = [(game, opt, i, len(uci_games))
                 for i, game in enumerate(uci_games)]
         ans = p.starmap(analyze_game, args)
     print()
     return ans
 
 
-def analyze_game(game, jsn, game_num, games_total):
-    with Popen(jsn['engine'], shell=True, stdin=PIPE, stdout=PIPE) as pipe:
+def analyze_game(game, opt, game_num, games_total):
+    with Popen(opt['engine'], shell=True, stdin=PIPE, stdout=PIPE) as pipe:
         pipe_response(pipe, 'uci', 'uciok')
         pipe_response(pipe, 'ucinewgame')
-        ans = [analyze_position(pipe, None, jsn['level'])]
+        ans = [analyze_position(pipe, None, opt['level'])]
         for halfmove_num in range(len(game)):
             moves = ' '.join(game[:halfmove_num + 1])
-            ans.append(analyze_position(pipe, moves, jsn['level']))
+            ans.append(analyze_position(pipe, moves, opt['level']))
         if ans[-1][0] == 'mate' and ans[-1][1] == '0':
             del(ans[-1])
         pipe_response(pipe, 'quit')
-        progress_bar(game_num, games_total, 'Analyzing:')
         return ans
     return None
 
@@ -93,11 +324,11 @@ def analyze_position(pipe, moves, level):
     return analysis_result(out)
 
 
-def get_stats(headers, result, jsn):
+def get_stats(headers, result, opt):
     ans = {}
     for hdr, res in zip(headers, result):
         for side in ('White', 'Black'):
-            stat = get_stat(res, side, jsn)
+            stat = get_stat(res, side, opt)
             if not stat:
                 continue
             if hdr[side] not in ans:
@@ -107,9 +338,9 @@ def get_stats(headers, result, jsn):
     return ans
 
 
-def get_stat(result, side, jsn):
+def get_stat(result, side, opt):
     sum_cp_loss, inaccs, mistakes, blunders = 0, 0, 0, 0
-    first = int(jsn['skip_first_moves']) if jsn['skip_first_moves'] else 0
+    first = int(opt['skip_first_moves']) if opt['skip_first_moves'] else 0
     res1 = get_list_of_lists(result, side, first)
     if not res1 or len(res1) == 0:
         return None
@@ -118,11 +349,11 @@ def get_stat(result, side, jsn):
         cp2 = -int(ans[1][1]) if ans[1][0] == 'cp' else 32000
         cp_loss = cp1 - cp2 if cp2 < cp1 else 0
         sum_cp_loss += cp_loss if ans[1][0] == ans[0][0] == 'cp' else 0
-        if cp_loss >= int(jsn['blunder']):
+        if cp_loss >= int(opt['blunder']):
             blunders += 1
-        elif cp_loss >= int(jsn['mistake']):
+        elif cp_loss >= int(opt['mistake']):
             mistakes += 1
-        elif cp_loss >= int(jsn['inaccuracy']):
+        elif cp_loss >= int(opt['inaccuracy']):
             inaccs += 1
     return sum_cp_loss/len(res1), inaccs, mistakes, blunders, 1, len(res1)
 
@@ -158,17 +389,17 @@ def out_stats(stats, player_name):
                ans[a][0]))
 
 
-def pgn_to_uci(jsn):
+def pgn_to_uci(opt):
     uci_games = []
     headers = []
     game_cr = 0
-    first, last = jsn['first_game'], jsn['last_game']
-    player = jsn['only_if_player_name_contains'].lower()
+    first, last = opt['first_game'], opt['last_game']
+    player = opt['only_if_player_name_contains'].lower()
     if not first or not last or int(first) <= 0 or int(last) <= 0:
         first, last = 1, int(1e9)
     else:
         first, last = int(first), int(last)
-    with open(jsn['pgn_input']) as file:
+    with open(opt['pgn_input']) as file:
         while game_cr < last:
             game = pgn.read_game(file)
             if not game:
@@ -267,20 +498,8 @@ def res_to_str(res):
     return score + '/' + res[3] + ' ' + res[2]
 
 
-def progress_bar(cur, total, prefix='Progress:', suffix='Finished',
-                 decimals=1, length=50, fill='█', end='\r'):
-    def _print_progress_bar(iteration):
-        percent = ('{0:.' + str(decimals) +
-                   'f}').format(100*(iteration/float(total)))
-        filled_length = int(length*iteration // total)
-        bar = fill*filled_length + '-'*(length - filled_length)
-        print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end=end)
-
-    _print_progress_bar(cur) if cur <= total else print()
-
-
 def test():
-    jsn = {"first_game": "",
+    opt = {"first_game": "",
            "last_game": "",
            "skip_first_moves": "",
            "only_if_player_name_contains": "",
@@ -289,7 +508,7 @@ def test():
            "blunder": "300"}
     results = get_values_from_pgn('test_games.pgn', '', '')
     headers = [{'White': 'Player1', 'Black': 'Player2'}]
-    stats = get_stats(headers, results, jsn)
+    stats = get_stats(headers, results, opt)
     assert stats == {'Player1': (400., 0, 0, 1, 1, 3),
                      'Player2': (370., 0, 0, 1, 1, 3)}
 
