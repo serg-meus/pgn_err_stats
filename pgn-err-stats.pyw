@@ -145,7 +145,7 @@ def pack_gui_items(items):
 
 
 def bind_buttons(buttons):
-    buttons['run'].bind('<Button-1>', on_evaluate)
+    buttons['run'].bind('<ButtonRelease-1>', on_evaluate)
     buttons['open_pgn_in'].bind('<Button-1>', on_open_pgn_in)
     buttons['open_pgn_out'].bind('<Button-1>', on_open_pgn_out)
     buttons['open_engine'].bind('<Button-1>', on_open_engine)
@@ -230,31 +230,44 @@ def evaluate(opt):
     print('\nAnalysis time: %.2f s' % (time() - t_start))
 
 
+def ini_dir(path):
+    if '/' in path.get():
+        return '/'.join(path.get().split('/')[:-1])
+    else:
+        return '.'
+
+
 def on_open_pgn_in(event, gui_items=None):
-    filename = fd.askopenfilename(title='Open file', initialdir='.',
+    filename = fd.askopenfilename(title='Open file',
+                                  initialdir=ini_dir(main.gui_items[0][1]),
                                   filetypes=(('PGN files', '*.pgn'),))
-    set_text(main.gui_items[0][1], filename)
+    if filename:
+        set_text(main.gui_items[0][1], filename)
     return 'break'
 
 
 def on_open_pgn_out(event, gui_items=None):
-    filename = fd.askopenfilename(title='Open file', initialdir='.',
-                                  filetypes=(('PGN files', '*.pgn'),))
-    set_text(main.gui_items[1][1], filename)
+    obj = fd.asksaveasfile(initialdir=ini_dir(main.gui_items[1][1]),
+                           filetypes=(('PGN files', '*.pgn'),))
+    if obj and obj.name:
+        set_text(main.gui_items[1][1], obj.name)
     return 'break'
 
 
 def on_open_engine(event, gui_items=None):
-    filename = fd.askopenfilename(title='Open file', initialdir='.',
+    filename = fd.askopenfilename(title='Open file',
+                                  initialdir=ini_dir(main.gui_items[2][1]),
                                   filetypes=(('All files', '*.*'),))
-    set_text(main.gui_items[2][1], filename)
+    if filename:
+        set_text(main.gui_items[2][1], filename.get())
     return 'break'
 
 
 def on_open_log(event, gui_items=None):
-    filename = fd.askopenfilename(title='Open file', initialdir='.',
-                                  filetypes=(('Text files', '*.txt'),))
-    set_text(main.gui_items[13][1], filename)
+    obj = fd.asksaveasfile(initialdir=ini_dir(main.gui_items[13][1]),
+                           filetypes=(('Text files', '*.txt'),))
+    if obj and obj.name:
+        set_text(main.gui_items[13][1], obj.name)
     return 'break'
 
 
