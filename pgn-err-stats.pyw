@@ -352,23 +352,29 @@ def get_stats(headers, result, opt):
 
 
 def get_stat(result, side, opt):
-    sum_cp_loss, inaccs, mistakes, blunders = 0, 0, 0, 0
+    sum_cp_loss = 0
+    ans = {'avg_cp_loss': 0, 'inaccuracies': 0, 'mistakes': 0,
+           'blunders': 0, 'mate_blunders': 0, 'moves': 0, 'games': 1}
     first = int(opt['skip_first_moves']) if opt['skip_first_moves'] else 0
-    res1 = get_list_of_lists(result, side, first)
-    if not res1 or len(res1) == 0:
+    evals = get_list_of_lists(result, side, first)
+    if not evals or len(evals) == 0:
         return None
-    for ans in res1:
-        cp1 = int(ans[0][1]) if ans[0][0] == 'cp' else 32000
-        cp2 = -int(ans[1][1]) if ans[1][0] == 'cp' else 32000
+    for e in evals:
+        cp1 = int(e[0][1]) if e[0][0] == 'cp' else 32000
+        cp2 = -int(e[1][1]) if e[1][0] == 'cp' else 32000
         cp_loss = cp1 - cp2 if cp2 < cp1 else 0
-        sum_cp_loss += cp_loss if ans[1][0] == ans[0][0] == 'cp' else 0
-        if cp_loss >= int(opt['blunder']):
-            blunders += 1
+        sum_cp_loss += cp_loss if e[1][0] == e[0][0] == 'cp' else 0
+        if cp_loss >= 2000:
+            ans['mate_blunders'] += 1
+        elif cp_loss >= int(opt['blunder']):
+            ans['blunders'] += 1
         elif cp_loss >= int(opt['mistake']):
-            mistakes += 1
+            ans['mistakes'] += 1
         elif cp_loss >= int(opt['inaccuracy']):
-            inaccs += 1
-    return sum_cp_loss/len(res1), inaccs, mistakes, blunders, 1, len(res1)
+            ans['inaccuracies'] += 1
+    ans['moves'] = len(evals)
+    ans['avg_cp_loss'] = sum_cp_loss/len(evals)
+    return ans
 
 
 def get_list_of_lists(result, side, first):
@@ -384,22 +390,24 @@ def get_list_of_lists(result, side, first):
 
 
 def update_stat(old, new):
-    avg_cp_loss = (old[0]*old[5] + new[0]*new[5])/(old[5] + new[5])
-    ans = [x + y for x, y in zip(old, new)]
-    ans[0] = avg_cp_loss
-    return ans
+    acl, ms = 'avg_cp_loss', 'moves'
+    avg_cp_loss = (old[acl]*old[ms] + new[acl]*new[ms])/(old[ms] + new[ms])
+    new = {k: old[k] + new[k] for k in old}
+    new[acl] = avg_cp_loss
+    return new
 
 
 def out_stats(stats, player_name):
-    ans = {k: v for k, v in sorted(stats.items(), key=lambda item: item[1][4],
-                                   reverse=True)}
+    ans = sorted(stats.items(), key=lambda it: it[1]['games'], reverse=True)
     if player_name:
         ans = {k: v for k, v in ans.items() if player_name in k.lower()}
     for i, a in enumerate(ans):
-        print('%d. %s. Games: %d, Moves: %d, Blunders: %d, Mistakes: %d, '
-              'Inaccuracies: %d, Average loss: %.1f centipawns' %
-              (i + 1, a, ans[a][4], ans[a][5], ans[a][3], ans[a][2], ans[a][1],
-               ans[a][0]))
+        print(f'{i + 1}. {a[0]}. Games: {a[1]["games"]}. Moves: '
+              f'{a[1]["moves"]}. Mate blunders: {a[1]["mate_blunders"]}. '
+              f'Blunders: {a[1]["blunders"]}. Mistakes: {a[1]["mistakes"]}. '
+              f'Inaccuracies: {a[1]["inaccuracies"]}. Average loss: '
+              f'{a[1]["avg_cp_loss"]: .1f} centipawns'
+              )
 
 
 def pgn_to_uci(opt):
@@ -522,8 +530,20 @@ def test():
     results = get_values_from_pgn('test_games.pgn', '', '')
     headers = [{'White': 'Player1', 'Black': 'Player2'}]
     stats = get_stats(headers, results, opt)
-    assert stats == {'Player1': (400., 0, 0, 1, 1, 3),
-                     'Player2': (370., 0, 0, 1, 1, 3)}
+    assert stats == {'Player1': {'avg_cp_loss': 400.0,
+                                 'inaccuracies': 0,
+                                 'mistakes': 0,
+                                 'blunders': 1,
+                                 'mate_blunders': 0,
+                                 'moves': 3,
+                                 'games': 1},
+                     'Player2': {'avg_cp_loss': 370.0,
+                                 'inaccuracies': 0,
+                                 'mistakes': 0,
+                                 'blunders': 1,
+                                 'mate_blunders': 0,
+                                 'moves': 3,
+                                 'games': 1}}
 
 
 if __name__ == '__main__':
