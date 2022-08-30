@@ -244,7 +244,7 @@ def ini_dir(path):
 def on_open_pgn_in(event, gui_items=None):
     filename = fd.askopenfilename(title='Open file',
                                   initialdir=ini_dir(main.gui_items[0][1]),
-                                  filetypes=(('PGN files', '*.pgn'),))
+                                  filetypes=(('PGN files', '.pgn'),))
     if filename:
         set_text(main.gui_items[0][1], filename)
     return 'break'
@@ -252,7 +252,7 @@ def on_open_pgn_in(event, gui_items=None):
 
 def on_open_pgn_out(event, gui_items=None):
     obj = fd.asksaveasfile(initialdir=ini_dir(main.gui_items[1][1]),
-                           filetypes=(('PGN files', '*.pgn'),))
+                           filetypes=(('PGN files', '.pgn'),))
     if obj and obj.name:
         set_text(main.gui_items[1][1], obj.name)
     return 'break'
@@ -261,7 +261,7 @@ def on_open_pgn_out(event, gui_items=None):
 def on_open_engine(event, gui_items=None):
     filename = fd.askopenfilename(title='Open file',
                                   initialdir=ini_dir(main.gui_items[2][1]),
-                                  filetypes=(('All files', '*.*'),))
+                                  filetypes=(('All files', '*'),))
     if filename:
         set_text(main.gui_items[2][1], filename)
     return 'break'
@@ -269,7 +269,7 @@ def on_open_engine(event, gui_items=None):
 
 def on_open_log(event, gui_items=None):
     obj = fd.asksaveasfile(initialdir=ini_dir(main.gui_items[13][1]),
-                           filetypes=(('Text files', '*.txt'),))
+                           filetypes=(('Text files', '.txt .log'),))
     if obj and obj.name:
         set_text(main.gui_items[13][1], obj.name)
     return 'break'
@@ -286,11 +286,11 @@ def on_exit():
 
 def on_show_log(event, gui_items=None):
     filepath = main.gui_items[13][1].get()
-    if system() == 'Darwin':       # macOS
+    if system() == 'Darwin':        # macOS
         call(('open', filepath))
-    elif system() == 'Windows':    # Windows
+    elif system() == 'Windows':     # Windows
         os.startfile(filepath)
-    else:                                   # linux
+    else:                           # linux
         call(('xdg-open', filepath))
     return 'break'
 
