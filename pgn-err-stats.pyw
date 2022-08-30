@@ -263,7 +263,7 @@ def on_open_engine(event, gui_items=None):
                                   initialdir=ini_dir(main.gui_items[2][1]),
                                   filetypes=(('All files', '*.*'),))
     if filename:
-        set_text(main.gui_items[2][1], filename.get())
+        set_text(main.gui_items[2][1], filename)
     return 'break'
 
 
@@ -366,6 +366,12 @@ def get_stats(headers, result, opt):
     return ans
 
 
+def get_score(pair):
+    if pair[0] == 'cp':
+        return int(pair[1])
+    return 32000 if pair[1][0] != '-' else -32000
+
+
 def get_stat(result, side, opt):
     sum_cp_loss = 0
     ans = {'avg_cp_loss': 0, 'inaccuracies': 0, 'mistakes': 0,
@@ -375,13 +381,14 @@ def get_stat(result, side, opt):
     if not evals or len(evals) == 0:
         return None
     for e in evals:
-        cp1 = int(e[0][1]) if e[0][0] == 'cp' else 32000
-        cp2 = -int(e[1][1]) if e[1][0] == 'cp' else 32000
+        cp1 = get_score(e[0])
+        cp2 = -get_score(e[1])
         cp_loss = cp1 - cp2 if cp2 < cp1 else 0
-        sum_cp_loss += cp_loss if e[1][0] == e[0][0] == 'cp' else 0
-        if cp_loss >= 2000:
+        if cp_loss >= 16000:
             ans['mate_blunders'] += 1
-        elif cp_loss >= int(opt['blunder']):
+            cp_loss = 0
+        sum_cp_loss += cp_loss
+        if cp_loss >= int(opt['blunder']):
             ans['blunders'] += 1
         elif cp_loss >= int(opt['mistake']):
             ans['mistakes'] += 1
@@ -399,8 +406,9 @@ def get_list_of_lists(result, side, first):
     if side == 'Black':
         del(ans1[0])
     ans2 = [ans1[i:i + 2] for i in range(0, len(ans1), 2)]
-    if len(ans2[-1]) == 1:
+    if ans2 and len(ans2[-1]) == 1:
         del(ans2[-1])
+
     return ans2
 
 
@@ -471,11 +479,10 @@ def get_values_from_pgn(in_file, first, last):
                 ans = []
             if '{' not in line:
                 continue
-            tmp = [x.split('/')[0] for x in line.split() if '/' in x and
-                   'M' not in x]
-            if tmp and '.' not in tmp[-1]:
-                del(tmp[-1])
-            ans += [['cp', str(int(float(x)*100))] for x in tmp]
+            tmp = [x.split('/')[0] for x in line.split() if '/' in x
+                   and x != '1/2-1/2']
+            ans += [['cp', str(int(float(x)*100))] if 'M' not in x else
+                    ['mate', x[0] + x[2:]]for x in tmp]
         results.append(ans)
     return results[1:]
 
@@ -543,22 +550,22 @@ def test():
            "mistake": "100",
            "blunder": "300"}
     results = get_values_from_pgn('test_games.pgn', '', '')
-    headers = [{'White': 'Player1', 'Black': 'Player2'}]
+    headers = 2*[{'White': 'Player1', 'Black': 'Player2'}]
     stats = get_stats(headers, results, opt)
-    assert stats == {'Player1': {'avg_cp_loss': 400.0,
-                                 'inaccuracies': 0,
+    assert stats == {'Player1': {'avg_cp_loss': 215.0,
+                                 'inaccuracies': 1,
                                  'mistakes': 0,
                                  'blunders': 1,
-                                 'mate_blunders': 0,
-                                 'moves': 3,
-                                 'games': 1},
-                     'Player2': {'avg_cp_loss': 370.0,
+                                 'mate_blunders': 2,
+                                 'moves': 6,
+                                 'games': 2},
+                     'Player2': {'avg_cp_loss': 244.0,
                                  'inaccuracies': 0,
-                                 'mistakes': 0,
+                                 'mistakes': 1,
                                  'blunders': 1,
-                                 'mate_blunders': 0,
-                                 'moves': 3,
-                                 'games': 1}}
+                                 'mate_blunders': 1,
+                                 'moves': 5,
+                                 'games': 2}}
 
 
 if __name__ == '__main__':
