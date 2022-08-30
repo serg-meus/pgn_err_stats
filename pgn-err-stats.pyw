@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-pgn-err-stats v.0.5
+pgn-err-stats v.0.6
 
   GUI tool for automatic analysis of chess games with an external UCI engine
 (see README.md)
@@ -39,7 +39,7 @@ def create_gui_items():
         "engine": "",
         "first_game": "0",
         "last_game": "0",
-        "skip_first_moves": "5",
+        "skip_first_moves": "0",
         "only_if_player_name_contains": "",
         "read_values_from_pgn_input": False,
         "level": "movetime 500",
