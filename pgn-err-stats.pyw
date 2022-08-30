@@ -10,8 +10,9 @@ pgn-err-stats v.0.5
 import tkinter as tk
 from tkinter import messagebox, filedialog as fd, ttk
 from time import time
-from subprocess import Popen, PIPE
-from os import path
+from subprocess import call, Popen, PIPE
+from platform import system
+import os
 import sys
 from multiprocessing import Pool
 from json import load, dumps
@@ -48,7 +49,7 @@ def create_gui_items():
         "blunder": "300",
         "logfile": "logfile.txt"
         }
-    if path.isfile('pgn-err-stats.json'):
+    if os.path.isfile('pgn-err-stats.json'):
         with open('pgn-err-stats.json', 'r', encoding='utf-8') as infile:
             opt = load(infile)
     items, buttons = init_gui_items()
@@ -128,12 +129,14 @@ def init_gui_items():
 
     items[14].append(tk.Label(text=''))
     items[14].append(tk.Button(text='Run'))
+    items[14].append(tk.Button(text='Show log'))
 
     buttons['open_pgn_in'] = items[0][2]
     buttons['open_pgn_out'] = items[1][2]
     buttons['open_engine'] = items[2][2]
     buttons['open_log'] = items[13][2]
     buttons['run'] = items[14][1]
+    buttons['show_log'] = items[14][2]
 
     return items, buttons
 
@@ -150,6 +153,7 @@ def bind_buttons(buttons):
     buttons['open_pgn_out'].bind('<Button-1>', on_open_pgn_out)
     buttons['open_engine'].bind('<Button-1>', on_open_engine)
     buttons['open_log'].bind('<Button-1>', on_open_log)
+    buttons['show_log'].bind('<ButtonRelease-1>', on_show_log)
 
 
 def get_options(items):
@@ -280,8 +284,19 @@ def on_exit():
     main.root.destroy()
 
 
+def on_show_log(event, gui_items=None):
+    filepath = main.gui_items[13][1].get()
+    if system() == 'Darwin':       # macOS
+        call(('open', filepath))
+    elif system() == 'Windows':    # Windows
+        os.startfile(filepath)
+    else:                                   # linux
+        call(('xdg-open', filepath))
+    return 'break'
+
+
 def analyze_and_save(uci_games, headers, opt):
-    if not path.isfile(opt['engine']):
+    if not os.path.isfile(opt['engine']):
         sys.stderr.write('Error: engine executable not found\n')
         sys.exit(1)
     if opt['cpu_cores'] != '1':
