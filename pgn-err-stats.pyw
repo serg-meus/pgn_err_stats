@@ -423,7 +423,7 @@ def update_stat(old, new):
 def out_stats(stats, player_name):
     ans = sorted(stats.items(), key=lambda it: it[1]['games'], reverse=True)
     if player_name:
-        ans = {k: v for k, v in ans.items() if player_name in k.lower()}
+        ans = {k: v for k, v in ans if player_name in k.lower()}.items()
     for i, a in enumerate(ans):
         print(f'{i + 1}. {a[0]}. Games: {a[1]["games"]}. Moves: '
               f'{a[1]["moves"]}. Mate blunders: {a[1]["mate_blunders"]}. '
