@@ -65,7 +65,7 @@ def set_text(item, text):
 
 
 def init_gui_items():
-    items = [[] for i in range(15)]
+    items = [[] for i in range(12)]
     buttons = {}
 
     items[0].append(tk.Label(text='Input PGN file'))
@@ -80,71 +80,70 @@ def init_gui_items():
     items[2].append(tk.Entry(width=60))
     items[2].append(tk.Button(text='Open'))
 
-    items[3].append(tk.Label(text='First game'))
+    items[3].append(tk.Label(text='First game, Last game'))
+    var = tk.IntVar(value=0)
+    items[3].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=1e9))
     var = tk.IntVar(value=0)
     items[3].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=1e9))
 
-    items[4].append(tk.Label(text='Last game'))
-    var = tk.IntVar(value=0)
-    items[4].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=1e9))
-
-    items[5].append(tk.Label(text='Skip first moves'))
+    items[4].append(tk.Label(text='Skip first moves'))
     var = tk.IntVar(value=5)
-    items[5].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=200))
+    items[4].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=200))
 
-    items[6].append(tk.Label(text='Only if player name contains'))
-    items[6].append(tk.Entry(width=60))
+    items[5].append(tk.Label(text='Only if player name contains'))
+    items[5].append(tk.Entry(width=60))
 
-    items[7].append(tk.Label(text='Read values from PGN input'))
-    items[7].append(tk.Label(text="(don't run the engine)"))
-    items[7].append(ttk.Checkbutton())
-    items[7][2].state(['!alternate', '!selected'])
+    items[6].append(tk.Label(text='Read values from PGN input'))
+    items[6].append(tk.Label(text="(don't run the engine)"))
+    items[6].append(ttk.Checkbutton())
+    items[6][2].state(['!alternate', '!selected'])
 
-    items[8].append(tk.Label(text='Level'))
-    items[8].append(ttk.Combobox(values=['movetime', 'nodes', 'depth'],
+    items[7].append(tk.Label(text='Level'))
+    items[7].append(ttk.Combobox(values=['movetime', 'nodes', 'depth'],
                                  state='readonly'))
     var = tk.IntVar(value=500)
-    items[8].append(tk.Spinbox(width=8, textvariable=var, from_=0, to=1e9))
-    items[8][1].current(0)
+    items[7].append(tk.Spinbox(width=8, textvariable=var, from_=0, to=1e9))
+    items[7][1].current(0)
+
+    items[8].append(tk.Label(text='Inaccuracy, Mistake, Blunder'))
+    var = tk.IntVar(value=50)
+    items[8].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=9999))
+    var = tk.IntVar(value=100)
+    items[8].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=9999))
+    var = tk.IntVar(value=300)
+    items[8].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=9999))
 
     items[9].append(tk.Label(text='CPU cores'))
     var = tk.IntVar(value=1)
     items[9].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=9999))
 
-    items[10].append(tk.Label(text='Inaccuracy'))
-    var = tk.IntVar(value=50)
-    items[10].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=9999))
+    items[10].append(tk.Label(text='Output log file'))
+    items[10].append(tk.Entry(width=60))
+    items[10].append(tk.Button(text='Open'))
 
-    items[11].append(tk.Label(text='Mistake'))
-    var = tk.IntVar(value=100)
-    items[11].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=9999))
-
-    items[12].append(tk.Label(text='Blunder'))
-    var = tk.IntVar(value=300)
-    items[12].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=9999))
-
-    items[13].append(tk.Label(text='Output log file'))
-    items[13].append(tk.Entry(width=60))
-    items[13].append(tk.Button(text='Open'))
-
-    items[14].append(tk.Label(text=''))
-    items[14].append(tk.Button(text='Run'))
-    items[14].append(tk.Button(text='Show log'))
+    items[11].append(tk.Label(text=''))
+    items[11].append(tk.Button(text='Run'))
+    items[11].append(tk.Button(text='Show log'))
 
     buttons['open_pgn_in'] = items[0][2]
     buttons['open_pgn_out'] = items[1][2]
     buttons['open_engine'] = items[2][2]
-    buttons['open_log'] = items[13][2]
-    buttons['run'] = items[14][1]
-    buttons['show_log'] = items[14][2]
+    buttons['open_log'] = items[10][2]
+    buttons['run'] = items[11][1]
+    buttons['show_log'] = items[11][2]
 
     return items, buttons
 
 
 def pack_gui_items(items):
+    spans = [[1, 3, 1], [1, 3, 1], [1, 3, 1], [1, 1, 1], [1, 1], [1, 3],
+             [1, 2, 1], [1, 2, 1], [1, 1, 1, 1], [1, 1], [1, 3, 1],
+             [1, 3, 1]]
     for row, row_items in enumerate(items):
         for col, item in enumerate(row_items):
-            item.grid(column=col, row=row, padx=6, pady=4, sticky=tk.W)
+            column = sum(spans[row][:col])
+            item.grid(column=column, row=row,
+                      padx=3, pady=2, sticky=tk.W, columnspan=spans[row][col])
 
 
 def bind_buttons(buttons):
@@ -162,17 +161,16 @@ def get_options(items):
     opt['pgn_output'] = items[1][1].get()
     opt['engine'] = items[2][1].get()
     opt['first_game'] = items[3][1].get()
-    opt['last_game'] = items[4][1].get()
-    opt['skip_first_moves'] = items[5][1].get()
-    opt['only_if_player_name_contains'] = items[6][1].get()
-    opt['read_values_from_pgn_input'] = items[7][2].instate(['selected'])
-    opt['level'] = items[8][1].get() + ' ' + items[8][2].get()
+    opt['last_game'] = items[3][2].get()
+    opt['skip_first_moves'] = items[4][1].get()
+    opt['only_if_player_name_contains'] = items[5][1].get()
+    opt['read_values_from_pgn_input'] = items[6][2].instate(['selected'])
+    opt['level'] = items[7][1].get() + ' ' + items[7][2].get()
+    opt['inaccuracy'] = items[8][1].get()
+    opt['mistake'] = items[8][2].get()
+    opt['blunder'] = items[8][3].get()
     opt['cpu_cores'] = items[9][1].get()
-    opt['inaccuracy'] = items[10][1].get()
-    opt['mistake'] = items[11][1].get()
-    opt['blunder'] = items[12][1].get()
-    opt['logfile'] = items[13][1].get()
-
+    opt['logfile'] = items[10][1].get()
     return opt
 
 
@@ -181,22 +179,21 @@ def set_options(items, opt):
     set_text(items[1][1], opt['pgn_output'])
     set_text(items[2][1], opt['engine'])
     set_text(items[3][1], opt['first_game'])
-    set_text(items[4][1], opt['last_game'])
-    set_text(items[5][1], opt['skip_first_moves'])
-    set_text(items[6][1], opt['only_if_player_name_contains'])
+    set_text(items[3][2], opt['last_game'])
+    set_text(items[4][1], opt['skip_first_moves'])
+    set_text(items[5][1], opt['only_if_player_name_contains'])
     if opt['read_values_from_pgn_input']:
-        items[7][2].state(['!alternate', 'selected'])
+        items[6][2].state(['!alternate', 'selected'])
     else:
-        items[7][2].state(['!alternate', '!selected'])
+        items[6][2].state(['!alternate', '!selected'])
     tmp = {'movetime': 0, 'nodes': 1, 'depth': 2}
-    items[8][1].current(tmp[opt['level'].split()[0]])
-    set_text(items[8][2], opt['level'].split()[1])
+    items[7][1].current(tmp[opt['level'].split()[0]])
+    set_text(items[7][2], opt['level'].split()[1])
+    set_text(items[8][1], opt['inaccuracy'])
+    set_text(items[8][2], opt['mistake'])
+    set_text(items[8][3], opt['blunder'])
     set_text(items[9][1], opt['cpu_cores'])
-    set_text(items[10][1], opt['inaccuracy'])
-    set_text(items[11][1], opt['mistake'])
-    set_text(items[12][1], opt['blunder'])
-    set_text(items[13][1], opt['logfile'])
-
+    set_text(items[10][1], opt['logfile'])
     return opt
 
 
@@ -261,17 +258,17 @@ def on_open_pgn_out(event, gui_items=None):
 def on_open_engine(event, gui_items=None):
     filename = fd.askopenfilename(title='Open file',
                                   initialdir=ini_dir(main.gui_items[2][1]),
-                                  filetypes=(('All files', '*'),))
+                                  filetypes=(('All files', '*.*'),))
     if filename:
         set_text(main.gui_items[2][1], filename)
     return 'break'
 
 
 def on_open_log(event, gui_items=None):
-    obj = fd.asksaveasfile(initialdir=ini_dir(main.gui_items[13][1]),
-                           filetypes=(('Text files', '.txt .log'),))
+    obj = fd.asksaveasfile(initialdir=ini_dir(main.gui_items[10][1]),
+                           filetypes=(('Text files', '.txt'),))
     if obj and obj.name:
-        set_text(main.gui_items[13][1], obj.name)
+        set_text(main.gui_items[10][1], obj.name)
     return 'break'
 
 
@@ -285,7 +282,7 @@ def on_exit():
 
 
 def on_show_log(event, gui_items=None):
-    filepath = main.gui_items[13][1].get()
+    filepath = main.gui_items[10][1].get()
     if system() == 'Darwin':        # macOS
         call(('open', filepath))
     elif system() == 'Windows':     # Windows
