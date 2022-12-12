@@ -12,6 +12,7 @@ from tkinter import messagebox, filedialog as fd, ttk
 from time import time
 from subprocess import call, Popen, PIPE
 from platform import system
+from math import ceil
 import os
 import sys
 from multiprocessing import Pool
@@ -37,9 +38,10 @@ def create_gui_items():
         "pgn_input": "",
         "pgn_output": "",
         "engine": "",
-        "first_game": "0",
-        "last_game": "0",
-        "skip_first_moves": "0",
+        "first_game": "",
+        "last_game": "",
+        "first_move": "",
+        "last_move": "",
         "only_if_player_name_contains": "",
         "read_values_from_pgn_input": False,
         "level": "movetime 500",
@@ -52,6 +54,9 @@ def create_gui_items():
     if os.path.isfile('pgn-err-stats.json'):
         with open('pgn-err-stats.json', 'r', encoding='utf-8') as infile:
             opt = load(infile)
+    if 'skip_first_moves' in opt:
+        opt['first_move'] = opt['skip_first_moves']
+        opt['last_move'] = ''
     items, buttons = init_gui_items()
     set_options(items, opt)
     pack_gui_items(items)
@@ -86,8 +91,10 @@ def init_gui_items():
     var = tk.IntVar(value=0)
     items[3].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=1e9))
 
-    items[4].append(tk.Label(text='Skip first moves'))
-    var = tk.IntVar(value=5)
+    items[4].append(tk.Label(text='First move, Last move'))
+    var = tk.IntVar(value=0)
+    items[4].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=200))
+    var = tk.IntVar(value=0)
     items[4].append(tk.Spinbox(width=10, textvariable=var, from_=0, to=200))
 
     items[5].append(tk.Label(text='Only if player name contains'))
@@ -136,7 +143,7 @@ def init_gui_items():
 
 
 def pack_gui_items(items):
-    spans = [[1, 3, 1], [1, 3, 1], [1, 3, 1], [1, 1, 1], [1, 1], [1, 3],
+    spans = [[1, 3, 1], [1, 3, 1], [1, 3, 1], [1, 1, 1], [1, 1, 1], [1, 3],
              [1, 2, 1], [1, 2, 1], [1, 1, 1, 1], [1, 1], [1, 3, 1],
              [1, 3, 1]]
     for row, row_items in enumerate(items):
@@ -162,7 +169,8 @@ def get_options(items):
     opt['engine'] = items[2][1].get()
     opt['first_game'] = items[3][1].get()
     opt['last_game'] = items[3][2].get()
-    opt['skip_first_moves'] = items[4][1].get()
+    opt['first_move'] = items[4][1].get()
+    opt['last_move'] = items[4][2].get()
     opt['only_if_player_name_contains'] = items[5][1].get()
     opt['read_values_from_pgn_input'] = items[6][2].instate(['selected'])
     opt['level'] = items[7][1].get() + ' ' + items[7][2].get()
@@ -180,7 +188,8 @@ def set_options(items, opt):
     set_text(items[2][1], opt['engine'])
     set_text(items[3][1], opt['first_game'])
     set_text(items[3][2], opt['last_game'])
-    set_text(items[4][1], opt['skip_first_moves'])
+    set_text(items[4][1], opt['first_move'])
+    set_text(items[4][2], opt['last_move'])
     set_text(items[5][1], opt['only_if_player_name_contains'])
     if opt['read_values_from_pgn_input']:
         items[6][2].state(['!alternate', 'selected'])
@@ -373,8 +382,10 @@ def get_stat(result, side, opt):
     sum_cp_loss = 0
     ans = {'avg_cp_loss': 0, 'inaccuracies': 0, 'mistakes': 0,
            'blunders': 0, 'mate_blunders': 0, 'moves': 0, 'games': 1}
-    first = int(opt['skip_first_moves']) if opt['skip_first_moves'] else 0
-    evals = get_list_of_lists(result, side, first)
+    first = int(opt['first_move']) - 1 if opt['first_move'] else 0
+    last = int(opt['last_move']) if opt['last_move'] and \
+        opt['last_move'] != '0' else ceil(len(result)/2)
+    evals = get_list_of_lists(result, side, first, last)
     if not evals or len(evals) == 0:
         return None
     for e in evals:
@@ -396,8 +407,8 @@ def get_stat(result, side, opt):
     return ans
 
 
-def get_list_of_lists(result, side, first):
-    ans1 = result[2*first:]
+def get_list_of_lists(result, side, first, last):
+    ans1 = result[2*first:2*last]
     if not ans1:
         return None
     if side == 'Black':
@@ -405,7 +416,6 @@ def get_list_of_lists(result, side, first):
     ans2 = [ans1[i:i + 2] for i in range(0, len(ans1), 2)]
     if ans2 and len(ans2[-1]) == 1:
         del(ans2[-1])
-
     return ans2
 
 
@@ -541,7 +551,8 @@ def res_to_str(res):
 def test():
     opt = {"first_game": "",
            "last_game": "",
-           "skip_first_moves": "",
+           "first_move": "",
+           "last_move": "",
            "only_if_player_name_contains": "",
            "inaccuracy": "50",
            "mistake": "100",
@@ -563,6 +574,25 @@ def test():
                                  'mate_blunders': 1,
                                  'moves': 5,
                                  'games': 2}}
+    opt["first_game"] = opt["last_game"] = 1
+    opt["first_move"] = 2
+    opt["last_move"] = 3
+    results = get_values_from_pgn('test_games.pgn', 1, 1)
+    stats = get_stats(headers, results, opt)
+    assert stats == {'Player1': {'avg_cp_loss': 600.0,
+                                 'inaccuracies': 0,
+                                 'mistakes': 0,
+                                 'blunders': 1,
+                                 'mate_blunders': 0,
+                                 'moves': 2,
+                                 'games': 1},
+                     'Player2': {'avg_cp_loss': 10.0,
+                                 'inaccuracies': 0,
+                                 'mistakes': 0,
+                                 'blunders': 0,
+                                 'mate_blunders': 0,
+                                 'moves': 1,
+                                 'games': 1}}
 
 
 if __name__ == '__main__':
