@@ -539,7 +539,7 @@ def write_pgn(uci_games, headers, results, out_file):
 
 def res_to_str(res):
     if res[0] == 'cp':
-        score = '{:.2f}'.format(int(res[1])/100)
+        score = '{:+.2f}'.format(int(res[1])/100)
     elif res[0] == 'mate':
         score = ('+' if int(res[1]) > 0 else '-') + 'M' + \
             res[1].replace('+', '').replace('-', '')
