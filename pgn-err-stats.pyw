@@ -7,8 +7,11 @@ pgn-err-stats v.0.6
 (see README.md)
 """
 
-import tkinter as tk
-from tkinter import messagebox, filedialog as fd, ttk
+try:
+    import tkinter as tk
+    from tkinter import messagebox, filedialog as fd, ttk
+except ImportError:
+    pass
 from time import time
 from subprocess import call, Popen, PIPE
 from platform import system
@@ -20,7 +23,13 @@ from json import load, dumps
 from chess import pgn, Move
 
 
-def main():
+def main(args=[]):
+    if len(args) >= 2 and args[1].endswith('gui') and 'no' in args[1]:
+        if os.path.isfile('pgn-err-stats.json'):
+            with open('pgn-err-stats.json', 'r', encoding='utf-8') as infile:
+                opt = load(infile)
+                evaluate(opt)
+        return
     root = tk.Tk()
     root.option_add("*Label.Font", "clearlyu 13")
     root.title("pgn-err-stats v0.5")
@@ -597,4 +606,4 @@ def test():
 
 if __name__ == '__main__':
     test()
-    main()
+    main(sys.argv)
