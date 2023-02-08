@@ -339,7 +339,7 @@ def analyze_game(game, opt, game_num, games_total):
         pipe_response(pipe, 'uci', 'uciok')
         pipe_response(pipe, 'ucinewgame')
         ans = [analyze_position(pipe, None, opt['level'])]
-        for halfmove_num in range(len(game)):
+        for halfmove_num in range(len(game) - 1):
             moves = ' '.join(game[:halfmove_num + 1])
             ans.append(analyze_position(pipe, moves, opt['level']))
         if ans[-1][0] == 'mate' and ans[-1][1] == '0':
@@ -480,7 +480,7 @@ def get_values_from_pgn(in_file, first, last):
             line = file.readline()
             if not line:
                 break
-            if '[Event' in line:
+            if line.startswith('[Event '):
                 game_cr += 1
                 results.append(ans)
                 ans = []
@@ -489,7 +489,7 @@ def get_values_from_pgn(in_file, first, last):
             tmp = [x.split('/')[0] for x in line.split() if '/' in x
                    and x != '1/2-1/2']
             ans += [['cp', str(int(float(x)*100))] if 'M' not in x else
-                    ['mate', x[0] + x[2:]]for x in tmp]
+                    ['mate', x[0] + x[2:]] for x in tmp]
         results.append(ans)
     return results[1:]
 
